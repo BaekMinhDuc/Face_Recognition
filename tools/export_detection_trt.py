@@ -28,6 +28,7 @@ def main() -> None:
     parser.add_argument("--fp32", action="store_true", help="Disable FP16 builder mode.")
     parser.add_argument("--workspace", type=int, default=4096, help="Workspace size in MiB.")
     parser.add_argument("--no-download", action="store_true", help="Do not auto-download missing InsightFace model pack.")
+    parser.add_argument("--backend", choices=["auto", "trtexec", "python"], default="auto", help="TensorRT export backend.")
     parser.add_argument("--dry-run", action="store_true", help="Print trtexec command without running it.")
     args = parser.parse_args()
 
@@ -66,12 +67,63 @@ def main() -> None:
     if args.dry_run:
         return
 
-    if shutil.which("trtexec") is None:
-        raise SystemExit("trtexec not found. Install TensorRT and make sure trtexec is in PATH.")
+    use_trtexec = args.backend == "trtexec" or (args.backend == "auto" and shutil.which("trtexec") is not None)
+    if use_trtexec:
+        if shutil.which("trtexec") is None:
+            raise SystemExit("trtexec not found. Install TensorRT and make sure trtexec is in PATH.")
+        subprocess.run(cmd, check=True)
+    else:
+        print("[INFO] trtexec not found; exporting with TensorRT Python API.")
+        _export_with_python_tensorrt(
+            input_path=input_path,
+            output_path=output_path,
+            input_name=input_name,
+            shape=(1, 3, det_h, det_w),
+            fp16=not args.fp32,
+            workspace_mib=args.workspace,
+        )
 
-    subprocess.run(cmd, check=True)
     print(f"Saved TensorRT engine: {output_path}")
     print("Note: TensorRT engines are GPU/driver/TensorRT-version specific. Rebuild on deployment machines.")
+
+
+def _export_with_python_tensorrt(
+    input_path: Path,
+    output_path: Path,
+    input_name: str,
+    shape: tuple[int, int, int, int],
+    fp16: bool,
+    workspace_mib: int,
+) -> None:
+    try:
+        import tensorrt as trt
+    except ImportError as exc:
+        raise SystemExit("Missing TensorRT Python package. Install requirements-tensorrt.txt first.") from exc
+
+    logger = trt.Logger(trt.Logger.INFO)
+    builder = trt.Builder(logger)
+    network = builder.create_network(1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    parser = trt.OnnxParser(network, logger)
+
+    model_bytes = input_path.read_bytes()
+    if not parser.parse(model_bytes):
+        errors = "\n".join(str(parser.get_error(i)) for i in range(parser.num_errors))
+        raise SystemExit(f"TensorRT ONNX parse failed:\n{errors}")
+
+    config = builder.create_builder_config()
+    config.set_memory_pool_limit(trt.MemoryPoolType.WORKSPACE, int(workspace_mib) * 1024 * 1024)
+    if fp16 and builder.platform_has_fast_fp16:
+        config.set_flag(trt.BuilderFlag.FP16)
+
+    profile = builder.create_optimization_profile()
+    profile.set_shape(input_name, min=shape, opt=shape, max=shape)
+    config.add_optimization_profile(profile)
+
+    serialized_engine = builder.build_serialized_network(network, config)
+    if serialized_engine is None:
+        raise SystemExit("TensorRT engine build failed.")
+
+    output_path.write_bytes(bytes(serialized_engine))
 
 
 def _default_detection_model(cfg: dict) -> Path:
