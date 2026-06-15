@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "face-recognition-app"
+version = "0.1.0"
+requires-python = ">=3.11"
+description = "InsightFace ArcFace RTSP face recognition pipeline"
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,7 @@
+# ONNX Runtime 1.22 TensorRT EP is built/tested with TensorRT 10.9.
+# This downloads several GB of NVIDIA runtime libraries.
+--extra-index-url https://pypi.nvidia.com
+tensorrt==10.9.0.34
+tensorrt-cu12==10.9.0.34
+tensorrt-cu12-bindings==10.9.0.34
+tensorrt-cu12-libs==10.9.0.34

@@ -1,0 +1,72 @@
+app:
+  title: Face Recognition
+  rtsp_url: rtsp://username:password@camera-ip:554/stream
+  display_size: [1920, 1080]
+
+paths:
+  face_data_dir: face_data
+  database_path: db_embedding/face_db.npz
+
+models:
+  insightface_name: buffalo_l
+  root: artifacts/models/arcface
+  tensorrt_detection_dir: artifacts/models/tensorrt
+  detection_size: [640, 640]
+  detection_threshold: 0.5
+  detection_nms_threshold: 0.4
+  max_faces: 0
+
+runtime:
+  gpu_id: 0
+  use_tensorrt: true
+  use_tensorrt_detection: true
+  use_tensorrt_recognition: false
+  tensorrt_fp16: true
+  tensorrt_engine_cache_dir: artifacts/runtime/ort_trt_cache
+
+recognition:
+  threshold: 0.5
+  embedding_batch_size: 1
+
+processing:
+  detect_every_n_frames: 1
+  recognize_every_n_frames: 15
+  log_interval_sec: 2.0
+
+sahi:
+  enabled: false
+  include_full_frame: true
+  slice_size: [1280, 720]
+  overlap_ratio: 0.2
+  merge_nms_threshold: 0.45
+  max_windows: 12
+
+video:
+  use_gstreamer: true
+  protocols: [udp, tcp]
+  codec: h265
+  decoder_priority: [nvidia_cuda, nvidia, cpu]
+  nvidia_decoders:
+    h265: nvh265dec max-display-delay=0
+    h264: nvh264dec max-display-delay=0
+  cpu_decoders:
+    h265: avdec_h265
+    h264: avdec_h264
+  latency: 50
+  max_buffers: 1
+  drop: true
+  drop_on_latency: true
+  decode_original_size: true
+  fallback_ffmpeg: true
+
+enroll:
+  image_extensions: [.jpg, .jpeg, .png, .bmp, .webp]
+  choose_largest_face: true
+  fail_on_multiple_faces: false
+  min_detection_score: 0.5
+
+visualization:
+  known_color: [0, 200, 0]
+  unknown_color: [0, 0, 255]
+  text_color: [255, 255, 255]
+  fps_color: [0, 255, 0]

@@ -1,0 +1,35 @@
+__pycache__/
+*.py[cod]
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local data and generated artifacts. Keep folder layout, not content.
+artifacts/**
+!artifacts/**/
+!artifacts/**/.gitkeep
+
+db_embedding/*
+!db_embedding/.gitkeep
+
+face_data/*
+!face_data/.gitkeep
+
+# Model/database files can be very large and machine-specific.
+*.engine
+*.plan
+*.trt
+*.onnx
+*.h5
+*.hdf5
+*.npz
+*.npy
+
+# Local editor/env files.
+.env
+.venv/
+venv/
+
+# Machine-specific runtime config.
+configs/local.yaml
