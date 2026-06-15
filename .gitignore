@@ -5,16 +5,10 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 
-# Local data and generated artifacts. Keep folder layout, not content.
-artifacts/**
-!artifacts/**/
-!artifacts/**/.gitkeep
-
-db_embedding/*
-!db_embedding/.gitkeep
-
-face_data/*
-!face_data/.gitkeep
+# Local data and generated artifacts.
+artifacts/
+db_embedding/
+face_data/
 
 # Model/database files can be very large and machine-specific.
 *.engine
