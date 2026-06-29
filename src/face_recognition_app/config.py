@@ -49,19 +49,19 @@ def resolve_path(path: str | Path) -> Path:
 
 
 def model_store_root(cfg: dict[str, Any]) -> Path:
-    return resolve_path(cfg["models"].get("root", "artifacts/models/arcface"))
+    return resolve_path(cfg["models"].get("root", "models/arcface"))
 
 
 def insightface_pack_dir(cfg: dict[str, Any]) -> Path:
-    return model_store_root(cfg) / "models" / cfg["models"]["insightface_name"]
+    return model_store_root(cfg) / cfg["models"]["insightface_name"]
 
 
 def insightface_pack_zip(cfg: dict[str, Any]) -> Path:
-    return model_store_root(cfg) / "models" / f"{cfg['models']['insightface_name']}.zip"
+    return model_store_root(cfg) / f"{cfg['models']['insightface_name']}.zip"
 
 
 def tensorrt_detection_dir(cfg: dict[str, Any]) -> Path:
-    return resolve_path(cfg["models"].get("tensorrt_detection_dir", "artifacts/models/tensorrt"))
+    return resolve_path(cfg["models"].get("tensorrt_detection_dir", "models/tensorrt"))
 
 
 def detection_engine_path(cfg: dict[str, Any], suffix: str = "fp16") -> Path:

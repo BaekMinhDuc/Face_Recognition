@@ -1,0 +1,13 @@
+app:
+  title: Face Recognition - Truong Hoc
+  rtsp_url: rtsp://username:password@camera-ip:554/stream
+
+paths:
+  face_data_dir: data/truonghoc/face_data
+  database_path: data/truonghoc/embeddings/buffalo_l/face_db.npz
+
+models:
+  insightface_name: buffalo_l
+
+recognition:
+  threshold: 0.5

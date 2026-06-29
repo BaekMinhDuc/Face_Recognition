@@ -4,13 +4,13 @@ app:
   display_size: [1920, 1080]
 
 paths:
-  face_data_dir: face_data
-  database_path: db_embedding/face_db.npz
+  face_data_dir: data/default/face_data
+  database_path: data/default/embeddings/buffalo_l/face_db.npz
 
 models:
   insightface_name: buffalo_l
-  root: artifacts/models/arcface
-  tensorrt_detection_dir: artifacts/models/tensorrt
+  root: models/arcface
+  tensorrt_detection_dir: models/tensorrt
   detection_size: [640, 640]
   detection_threshold: 0.5
   detection_nms_threshold: 0.4

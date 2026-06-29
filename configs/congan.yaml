@@ -1,0 +1,13 @@
+app:
+  title: Face Recognition - Cong An
+  rtsp_url: rtsp://username:password@camera-ip:554/stream
+
+paths:
+  face_data_dir: data/congan/face_data
+  database_path: data/congan/embeddings/buffalo_l/face_db.npz
+
+models:
+  insightface_name: buffalo_l
+
+recognition:
+  threshold: 0.5

@@ -7,6 +7,8 @@ __pycache__/
 
 # Local data and generated artifacts.
 artifacts/
+models/
+data/
 db_embedding/
 face_data/
 

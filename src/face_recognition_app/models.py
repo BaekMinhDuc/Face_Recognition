@@ -40,8 +40,16 @@ class FaceEngine:
             self.runtime_cfg.get("use_tensorrt_recognition", False)
         )
 
-        det_providers, det_provider_options = build_ort_provider_config(cfg, use_tensorrt=det_use_trt)
-        rec_providers, rec_provider_options = build_ort_provider_config(cfg, use_tensorrt=rec_use_trt)
+        det_providers, det_provider_options = build_ort_provider_config(
+            cfg,
+            use_tensorrt=det_use_trt,
+            model_role="detection",
+        )
+        rec_providers, rec_provider_options = build_ort_provider_config(
+            cfg,
+            use_tensorrt=rec_use_trt,
+            model_role="recognition",
+        )
 
         det_path = detection_onnx_path(cfg)
         rec_path = recognition_onnx_path(cfg)
@@ -49,7 +57,11 @@ class FaceEngine:
             self.det_model = self._load_model(det_path, det_providers, det_provider_options, "detection")
         except Exception as exc:
             print(f"[WARNING] Detection TensorRT/CUDA init failed, fallback to CUDA/CPU: {exc}")
-            det_providers, det_provider_options = build_ort_provider_config(cfg, use_tensorrt=False)
+            det_providers, det_provider_options = build_ort_provider_config(
+                cfg,
+                use_tensorrt=False,
+                model_role="detection",
+            )
             self.det_model = self._load_model(det_path, det_providers, det_provider_options, "detection")
 
         self.rec_model = self._load_model(rec_path, rec_providers, rec_provider_options, "recognition")

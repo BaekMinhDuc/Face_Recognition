@@ -6,7 +6,7 @@ from pathlib import Path
 
 import onnxruntime as ort
 
-from .config import resolve_path
+from .config import resolve_path, tuple2
 
 
 def has_tensorrt_runtime() -> bool:
@@ -19,7 +19,11 @@ def tensorrt_library_dirs() -> list[Path]:
     return _candidate_tensorrt_lib_dirs()
 
 
-def build_ort_provider_config(cfg: dict, use_tensorrt: bool | None = None) -> tuple[list[str], list[dict[str, str]]]:
+def build_ort_provider_config(
+    cfg: dict,
+    use_tensorrt: bool | None = None,
+    model_role: str | None = None,
+) -> tuple[list[str], list[dict[str, str]]]:
     runtime_cfg = cfg["runtime"]
     available = ort.get_available_providers()
     providers: list[str] = []
@@ -28,7 +32,7 @@ def build_ort_provider_config(cfg: dict, use_tensorrt: bool | None = None) -> tu
     gpu_id = str(runtime_cfg.get("gpu_id", 0))
     enable_tensorrt = bool(runtime_cfg.get("use_tensorrt", False)) if use_tensorrt is None else use_tensorrt
     if enable_tensorrt and has_tensorrt_runtime() and "TensorrtExecutionProvider" in available:
-        cache_dir = resolve_path(runtime_cfg["tensorrt_engine_cache_dir"])
+        cache_dir = _tensorrt_cache_dir(cfg, model_role)
         os.makedirs(cache_dir, exist_ok=True)
 
         providers.append("TensorrtExecutionProvider")
@@ -46,6 +50,23 @@ def build_ort_provider_config(cfg: dict, use_tensorrt: bool | None = None) -> tu
     providers.append("CPUExecutionProvider")
     provider_options.append({})
     return providers, provider_options
+
+
+def _tensorrt_cache_dir(cfg: dict, model_role: str | None) -> Path:
+    runtime_cfg = cfg["runtime"]
+    model_cfg = cfg["models"]
+    base_dir = resolve_path(runtime_cfg["tensorrt_engine_cache_dir"])
+    model_name = str(model_cfg.get("insightface_name", "unknown_model"))
+    fp_suffix = "fp16" if runtime_cfg.get("tensorrt_fp16", True) else "fp32"
+
+    if model_role == "detection":
+        det_w, det_h = tuple2(model_cfg["detection_size"], "models.detection_size")
+        return base_dir / f"{model_name}_detection_{det_w}x{det_h}_{fp_suffix}"
+
+    if model_role:
+        return base_dir / f"{model_name}_{model_role}_{fp_suffix}"
+
+    return base_dir / f"{model_name}_{fp_suffix}"
 
 
 def _candidate_tensorrt_lib_dirs() -> list[Path]:

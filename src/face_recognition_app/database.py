@@ -101,6 +101,49 @@ class FaceDatabase:
             metadata=json.dumps(metadata, ensure_ascii=False),
         )
 
+    def save_h5(self, path: str | Path) -> None:
+        path = Path(path).expanduser()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        metadata = dict(self.metadata)
+        metadata.update({
+            "version": DB_VERSION,
+            "updated_at": datetime.now().isoformat(timespec="seconds"),
+            "embedding_dim": int(self.avg_embeddings.shape[1]) if self.avg_embeddings.size else 0,
+            "num_people": len(self.names),
+            "num_samples": len(self.sample_names),
+        })
+
+        with h5py.File(path, "w") as f:
+            metadata_group = f.create_group("metadata")
+            for key, value in metadata.items():
+                if isinstance(value, (dict, list, tuple)):
+                    metadata_group.attrs[key] = json.dumps(value, ensure_ascii=False)
+                else:
+                    metadata_group.attrs[key] = value
+
+            avg_group = f.create_group("avg_embeddings")
+            for name, embedding in zip(self.names, _normalize_rows(self.avg_embeddings)):
+                avg_group.create_dataset(name, data=embedding.astype(np.float32))
+
+            embeddings_group = f.create_group("embeddings")
+            grouped: dict[str, list[np.ndarray]] = {name: [] for name in self.names}
+            for name, embedding in zip(self.sample_names, _normalize_rows(self.sample_embeddings)):
+                grouped.setdefault(name, []).append(embedding.astype(np.float32))
+            for name, embeddings in grouped.items():
+                if embeddings:
+                    embeddings_group.create_dataset(name, data=np.vstack(embeddings).astype(np.float32))
+
+    def save(self, path: str | Path) -> None:
+        path = Path(path).expanduser()
+        suffix = path.suffix.lower()
+        if suffix == ".npz":
+            self.save_npz(path)
+            return
+        if suffix in {".h5", ".hdf5"}:
+            self.save_h5(path)
+            return
+        raise ValueError(f"Unsupported database format for save: {path.suffix}")
+
     def match(self, embeddings: np.ndarray, threshold: float) -> list[tuple[str, float]]:
         if embeddings.shape[0] == 0:
             return []

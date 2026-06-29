@@ -4,17 +4,20 @@ InsightFace/ArcFace face recognition pipeline for RTSP cameras.
 
 ## Layout
 
-- `recognize.py`: main camera runtime.
+- `recognize.py`: short camera runtime entrypoint, only selects `CONFIG_FILE`.
+- `enroll_embedding.py`: short embedding enrollment entrypoint, only selects `CONFIG_FILE`.
+- `runner.py`: shared entrypoint helpers for runtime scripts.
 - `configs/default.yaml`: all runtime/model/video/enroll settings.
+- `configs/congan.yaml`, `configs/truonghoc.yaml`: example dataset profiles.
 - `src/face_recognition_app/`: reusable application code.
-- `tools/enroll_embeddings.py`: build an embedding database from `face_data/`.
+- `tools/enroll_embeddings.py`: CLI wrapper for building an embedding database.
 - `tools/check_embeddings.py`: inspect database quality and enrolled people.
 - `tools/quantize_detection_fp16.py`: convert detection ONNX to FP16.
 - `tools/export_detection_trt.py`: export only the face detection ONNX to TensorRT engine with `trtexec`.
-- `face_data/`: put enrollment images here.
-- `db_embedding/`: generated embedding databases. Git-ignored except `.gitkeep`.
-- `artifacts/models/arcface/`: repo-local InsightFace model packs, auto-downloaded here.
-- `artifacts/models/tensorrt/`: manually exported detection TensorRT engines.
+- `data/<profile>/face_data/`: enrollment images for each deployment profile.
+- `data/<profile>/embeddings/<model_name>/`: generated embedding database and manifest.
+- `models/arcface/`: repo-local InsightFace model packs, auto-downloaded here.
+- `models/tensorrt/`: manually exported detection TensorRT engines.
 - `artifacts/runtime/ort_trt_cache/`: ONNX Runtime TensorRT cache, generated locally.
 
 All runtime paths are relative to this `face_recognition/` folder. Models and embeddings are not written to `~/.insightface` or other machine cache folders.
@@ -30,12 +33,56 @@ pip install -r requirements.txt
 
 For GStreamer RTSP decode, use an OpenCV build with `GStreamer: YES`. The pip wheel is fine for FFMPEG fallback, but usually does not include GStreamer.
 
+## Config Profiles
+
+Use one YAML file per deployment or dataset. Source code stays the same; only `CONFIG_FILE` changes.
+
+Example:
+
+```text
+configs/
+  congan.yaml
+  truonghoc.yaml
+
+data/
+  congan/
+    face_data/
+    embeddings/
+      buffalo_l/
+        face_db.npz
+        manifest.json
+
+  truonghoc/
+    face_data/
+    embeddings/
+      buffalo_l/
+        face_db.npz
+        manifest.json
+```
+
+In a profile config:
+
+```yaml
+paths:
+  face_data_dir: data/congan/face_data
+  database_path: data/congan/embeddings/buffalo_l/face_db.npz
+
+models:
+  insightface_name: buffalo_l
+```
+
+Then select that profile in `recognize.py` or `enroll_embedding.py`:
+
+```python
+CONFIG_FILE = "configs/congan.yaml"
+```
+
 ## Prepare Face Data
 
 Simple layout:
 
 ```text
-face_data/
+data/congan/face_data/
   MinhDuc.jpg
   Alice.png
 ```
@@ -43,7 +90,7 @@ face_data/
 Folder layout is also supported:
 
 ```text
-face_data/
+data/congan/face_data/
   MinhDuc/
     img1.jpg
     img2.jpg
@@ -58,17 +105,17 @@ Build the database:
 ```bash
 conda activate .face
 cd face_recognition
-python3 tools/enroll_embeddings.py
+python3 enroll_embedding.py
 ```
 
 Check the database:
 
 ```bash
 cd face_recognition
-python3 tools/check_embeddings.py
+python3 tools/check_embeddings.py --config configs/congan.yaml
 ```
 
-By default the database path is controlled by `paths.database_path` in `configs/default.yaml`.
+The enrollment script saves the database to `paths.database_path` and writes a `manifest.json` next to it. `.npz`, `.h5`, and `.hdf5` database paths are supported.
 
 ## Run Recognition
 
@@ -99,15 +146,15 @@ python3 recognize.py
 On the first run for a model pack, InsightFace downloads it into:
 
 ```text
-artifacts/models/arcface/models/<model_name>/
+models/arcface/<model_name>/
 ```
 
 For example:
 
 ```text
-artifacts/models/arcface/models/buffalo_l/
-artifacts/models/arcface/models/buffalo_s/
-artifacts/models/arcface/models/antelopev2/
+models/arcface/buffalo_l/
+models/arcface/buffalo_s/
+models/arcface/antelopev2/
 ```
 
 ## Detection Model Optimization
@@ -137,12 +184,12 @@ python3 tools/export_detection_trt.py --model antelopev2
 The export tool auto-downloads the model pack if it is missing, selects only `det*.onnx`, and writes the engine to:
 
 ```text
-artifacts/models/tensorrt/<model_name>/detection_640x640_fp16.engine
+models/tensorrt/<model_name>/detection_640x640_fp16.engine
 ```
 
 This requires TensorRT and `trtexec` in `PATH`. TensorRT engines are specific to GPU, driver, CUDA, and TensorRT versions. Rebuild the engine on each deployment machine. RTX 3090 supports FP16 TensorRT.
 
-The runtime uses ONNX Runtime providers. When TensorRT runtime libraries are installed, it enables `TensorrtExecutionProvider` with repo-local engine caching under `artifacts/runtime/ort_trt_cache`; otherwise it falls back to CUDA and then CPU.
+The runtime uses ONNX Runtime providers. When TensorRT runtime libraries are installed, it enables `TensorrtExecutionProvider` with repo-local engine caching under `artifacts/runtime/ort_trt_cache/<model_name>_detection_640x640_fp16/`; otherwise it falls back to CUDA and then CPU.
 
 Install TensorRT runtime for ONNX Runtime 1.22:
 

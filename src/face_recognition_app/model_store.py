@@ -23,7 +23,13 @@ RECOGNITION_PATTERNS = (
 
 def normalize_insightface_pack(cfg: dict) -> None:
     model_dir = insightface_pack_dir(cfg)
+    legacy_model_dir = model_store_root(cfg) / "models" / cfg["models"]["insightface_name"]
+    if legacy_model_dir.exists() and not model_dir.exists():
+        model_dir.parent.mkdir(parents=True, exist_ok=True)
+        legacy_model_dir.replace(model_dir)
+
     if not model_dir.exists():
+        cleanup_model_archive(cfg)
         return
 
     if not list(model_dir.glob("*.onnx")):
@@ -43,9 +49,19 @@ def normalize_insightface_pack(cfg: dict) -> None:
 
 
 def cleanup_model_archive(cfg: dict) -> None:
-    archive = insightface_pack_zip(cfg)
-    if archive.exists():
-        archive.unlink()
+    archives = [
+        insightface_pack_zip(cfg),
+        model_store_root(cfg) / "models" / f"{cfg['models']['insightface_name']}.zip",
+    ]
+    for archive in archives:
+        if archive.exists():
+            archive.unlink()
+
+    legacy_models_dir = model_store_root(cfg) / "models"
+    try:
+        legacy_models_dir.rmdir()
+    except OSError:
+        pass
 
 
 def detection_onnx_path(cfg: dict) -> Path:
