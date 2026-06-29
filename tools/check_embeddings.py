@@ -3,13 +3,17 @@ from __future__ import annotations
 
 import argparse
 from collections import defaultdict
+from pathlib import Path
+import sys
 
 import numpy as np
 
-import _bootstrap  # noqa: F401
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-from face_recognition_app.config import load_config, resolve_path
-from face_recognition_app.database import FaceDatabase, embedding_quality
+from src.face_recognition_app.config import load_config, resolve_path
+from src.face_recognition_app.database import FaceDatabase, embedding_quality
 
 
 def main() -> None:
