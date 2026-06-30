@@ -136,14 +136,15 @@ Edit `configs/local.yaml`, especially:
 - `sahi.enabled`
 - `video.device: rtx` for desktop NVIDIA GPUs using `nvh264dec`/`nvh265dec`.
 - `video.device: jetson` for Jetson devices using `nvv4l2decoder`.
-- `video.codec: h265` or `h264` to match the camera stream.
+- `video.codec: auto` to try both H.265 and H.264 streams.
 
 For RTX/desktop PC:
 
 ```yaml
 video:
   device: rtx
-  codec: h265
+  codec: auto
+  codec_priority: [h265, h264]
   decoder_priority: auto
 ```
 
@@ -152,11 +153,12 @@ For Jetson:
 ```yaml
 video:
   device: jetson
-  codec: h265
+  codec: auto
+  codec_priority: [h265, h264]
   decoder_priority: auto
 ```
 
-`decoder_priority: auto` selects a GPU decoder for the selected device and falls back to CPU when configured. You can still force a backend manually with values such as `[nvidia_cuda, nvidia, cpu]` or `[jetson, cpu]`.
+`decoder_priority: auto` selects a GPU decoder for the selected device and falls back to CPU when configured. `codec: auto` tries codecs in `codec_priority`, so mixed H.265/H.264 camera deployments can use one config. You can still force a backend manually with values such as `[nvidia_cuda, nvidia, cpu]` or `[jetson, cpu]`.
 
 Then run:
 

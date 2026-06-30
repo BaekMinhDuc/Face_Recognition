@@ -3,10 +3,16 @@ from __future__ import annotations
 import cv2
 
 
-def build_gstreamer_pipeline(rtsp_url: str, cfg: dict, protocol: str, decoder_backend: str = "nvidia") -> str:
+def build_gstreamer_pipeline(
+    rtsp_url: str,
+    cfg: dict,
+    protocol: str,
+    decoder_backend: str = "nvidia",
+    codec: str | None = None,
+) -> str:
     video_cfg = cfg["video"]
     decoder_backend = _normalize_backend(decoder_backend)
-    codec = str(video_cfg.get("codec", "h265")).lower()
+    codec = _normalize_codec(codec or str(video_cfg.get("codec", "h265")))
     if codec == "h264":
         depay = "rtph264depay"
         parser = "h264parse config-interval=-1"
@@ -39,11 +45,13 @@ def open_video_capture(rtsp_url: str, cfg: dict) -> tuple[cv2.VideoCapture | Non
     if video_cfg.get("use_gstreamer", True):
         for decoder_backend in _decoder_priority(video_cfg):
             for protocol in video_cfg.get("protocols", ["udp", "tcp"]):
-                pipeline = build_gstreamer_pipeline(rtsp_url, cfg, str(protocol), str(decoder_backend))
-                cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
-                if cap.isOpened():
-                    return cap, f"gstreamer-{protocol}-{_normalize_backend(str(decoder_backend))}"
-                cap.release()
+                for codec in _codec_priority(video_cfg):
+                    pipeline = build_gstreamer_pipeline(rtsp_url, cfg, str(protocol), str(decoder_backend), codec)
+                    cap = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
+                    if cap.isOpened():
+                        backend = _normalize_backend(str(decoder_backend))
+                        return cap, f"gstreamer-{protocol}-{backend}-{codec}"
+                    cap.release()
 
     if video_cfg.get("fallback_ffmpeg", True):
         cap = cv2.VideoCapture(rtsp_url, cv2.CAP_FFMPEG)
@@ -121,6 +129,29 @@ def _decoder_priority(video_cfg: dict) -> list[str]:
     if device == "cpu":
         return ["cpu"]
     return ["nvidia_cuda", "nvidia", "jetson", "cpu"]
+
+
+def _codec_priority(video_cfg: dict) -> list[str]:
+    codec = str(video_cfg.get("codec", "h265")).lower()
+    if codec == "auto":
+        return [_normalize_codec(item) for item in video_cfg.get("codec_priority", ["h265", "h264"])]
+    return [_normalize_codec(codec)]
+
+
+def _normalize_codec(value: str) -> str:
+    value = value.lower()
+    aliases = {
+        "265": "h265",
+        "hevc": "h265",
+        "h.265": "h265",
+        "264": "h264",
+        "avc": "h264",
+        "h.264": "h264",
+    }
+    normalized = aliases.get(value, value)
+    if normalized not in {"h265", "h264"}:
+        raise ValueError(f"Unsupported video codec: {value}")
+    return normalized
 
 
 def _normalize_backend(value: str) -> str:

@@ -45,7 +45,8 @@ video:
   device: rtx
   use_gstreamer: true
   protocols: [udp, tcp]
-  codec: h265
+  codec: auto
+  codec_priority: [h265, h264]
   decoder_priority: auto
   nvidia_decoders:
     h265: nvh265dec max-display-delay=0
