@@ -1,6 +1,6 @@
 app:
   title: Face Detection
-  rtsp_url: rtsp://username:password@camera-ip:554/stream
+  rtsp_url: rtsp://admin:@192.168.0.101:554/media/live/101
 
 features:
   detection: true
