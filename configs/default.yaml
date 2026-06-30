@@ -42,13 +42,17 @@ sahi:
   max_windows: 12
 
 video:
+  device: rtx
   use_gstreamer: true
   protocols: [udp, tcp]
   codec: h265
-  decoder_priority: [nvidia_cuda, nvidia, cpu]
+  decoder_priority: auto
   nvidia_decoders:
     h265: nvh265dec max-display-delay=0
     h264: nvh264dec max-display-delay=0
+  jetson_decoders:
+    h265: nvv4l2decoder enable-max-performance=1
+    h264: nvv4l2decoder enable-max-performance=1
   cpu_decoders:
     h265: avdec_h265
     h264: avdec_h264

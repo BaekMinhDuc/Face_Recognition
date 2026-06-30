@@ -134,7 +134,29 @@ Edit `configs/local.yaml`, especially:
 - `models.insightface_name`
 - `recognition.threshold`
 - `sahi.enabled`
-- `video.codec: h265` and `video.decoder_priority: [nvidia, cpu]` for NVIDIA H.265 GPU decode first.
+- `video.device: rtx` for desktop NVIDIA GPUs using `nvh264dec`/`nvh265dec`.
+- `video.device: jetson` for Jetson devices using `nvv4l2decoder`.
+- `video.codec: h265` or `h264` to match the camera stream.
+
+For RTX/desktop PC:
+
+```yaml
+video:
+  device: rtx
+  codec: h265
+  decoder_priority: auto
+```
+
+For Jetson:
+
+```yaml
+video:
+  device: jetson
+  codec: h265
+  decoder_priority: auto
+```
+
+`decoder_priority: auto` selects a GPU decoder for the selected device and falls back to CPU when configured. You can still force a backend manually with values such as `[nvidia_cuda, nvidia, cpu]` or `[jetson, cpu]`.
 
 Then run:
 

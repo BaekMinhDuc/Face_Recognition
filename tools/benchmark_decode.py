@@ -21,7 +21,7 @@ def main() -> None:
     parser.add_argument("--config", default="configs/default.yaml")
     parser.add_argument("--seconds", type=float, default=10.0)
     parser.add_argument("--warmup", type=float, default=1.0)
-    parser.add_argument("--backend", default=None, help="Force backend: nvidia_cuda, nvidia, cpu, or ffmpeg.")
+    parser.add_argument("--backend", default=None, help="Force backend: nvidia_cuda, nvidia, jetson, cpu, or ffmpeg.")
     parser.add_argument("--protocol", default="udp", help="GStreamer protocol when backend is forced.")
     args = parser.parse_args()
 
