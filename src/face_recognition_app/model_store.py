@@ -20,6 +20,11 @@ RECOGNITION_PATTERNS = (
     "mobilefacenet*.onnx",
 )
 
+GENDER_AGE_PATTERNS = (
+    "genderage*.onnx",
+    "*gender*age*.onnx",
+)
+
 
 def normalize_insightface_pack(cfg: dict) -> None:
     model_dir = insightface_pack_dir(cfg)
@@ -115,10 +120,33 @@ def recognition_onnx_path(cfg: dict) -> Path:
     return candidates[0]
 
 
-def ensure_model_pack_downloaded(cfg: dict) -> None:
+def gender_age_onnx_path(cfg: dict) -> Path:
+    normalize_insightface_pack(cfg)
+    model_dir = insightface_pack_dir(cfg)
+    candidates: list[Path] = []
+    for pattern in GENDER_AGE_PATTERNS:
+        candidates.extend(model_dir.glob(pattern))
+
+    candidates = sorted(path for path in candidates if path.is_file())
+    if not candidates:
+        raise FileNotFoundError(
+            f"Cannot find gender/age ONNX in {model_dir}. "
+            f"Expected one of: {', '.join(GENDER_AGE_PATTERNS)}"
+        )
+    return candidates[0]
+
+
+def ensure_model_pack_downloaded(
+    cfg: dict,
+    require_recognition: bool = True,
+    require_gender_age: bool = False,
+) -> None:
     try:
         detection_onnx_path(cfg)
-        recognition_onnx_path(cfg)
+        if require_recognition:
+            recognition_onnx_path(cfg)
+        if require_gender_age:
+            gender_age_onnx_path(cfg)
         return
     except FileNotFoundError:
         pass
@@ -136,5 +164,14 @@ def ensure_model_pack_downloaded(cfg: dict) -> None:
     except AssertionError:
         normalize_insightface_pack(cfg)
         detection_onnx_path(cfg)
+        if require_recognition:
+            recognition_onnx_path(cfg)
+        if require_gender_age:
+            gender_age_onnx_path(cfg)
     else:
         normalize_insightface_pack(cfg)
+        detection_onnx_path(cfg)
+        if require_recognition:
+            recognition_onnx_path(cfg)
+        if require_gender_age:
+            gender_age_onnx_path(cfg)

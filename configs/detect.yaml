@@ -1,0 +1,24 @@
+app:
+  title: Face Detection
+  rtsp_url: rtsp://username:password@camera-ip:554/stream
+
+features:
+  detection: true
+  recognition: false
+  gender_age: false
+
+models:
+  insightface_name: buffalo_l
+  detection_size: [640, 640]
+  detection_threshold: 0.5
+
+runtime:
+  use_tensorrt: true
+  use_tensorrt_detection: true
+  use_tensorrt_recognition: false
+
+video:
+  device: rtx
+  codec: auto
+  codec_priority: [h265, h264]
+  decoder_priority: auto

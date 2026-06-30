@@ -167,6 +167,60 @@ cd face_recognition
 python3 recognize.py
 ```
 
+## Runtime Features
+
+The same `recognize.py` entrypoint can run detection-only, face recognition, or gender/age depending on YAML flags:
+
+```yaml
+features:
+  detection: true
+  recognition: true
+  gender_age: false
+```
+
+Detection only:
+
+```yaml
+features:
+  detection: true
+  recognition: false
+  gender_age: false
+```
+
+This loads only the face detection model, opens the camera, and draws bounding boxes without labels or database matching. A ready sample is available at:
+
+```text
+configs/detect.yaml
+```
+
+To use it, edit `recognize.py`:
+
+```python
+CONFIG_FILE = "configs/detect.yaml"
+```
+
+Recognition:
+
+```yaml
+features:
+  detection: true
+  recognition: true
+  gender_age: false
+```
+
+This loads detection + recognition models and `paths.database_path`.
+
+Recognition with gender/age:
+
+```yaml
+features:
+  detection: true
+  recognition: true
+  gender_age: true
+```
+
+This additionally loads `genderage.onnx` from the selected InsightFace model pack.
+
 On the first run for a model pack, InsightFace downloads it into:
 
 ```text

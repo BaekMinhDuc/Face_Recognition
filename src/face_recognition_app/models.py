@@ -7,10 +7,11 @@ from types import SimpleNamespace
 import cv2
 import numpy as np
 from insightface.model_zoo import model_zoo
+from insightface.app.common import Face
 from insightface.utils import face_align
 
 from .config import model_store_root, tuple2
-from .model_store import detection_onnx_path, ensure_model_pack_downloaded, recognition_onnx_path
+from .model_store import detection_onnx_path, ensure_model_pack_downloaded, gender_age_onnx_path, recognition_onnx_path
 from .providers import build_ort_provider_config
 
 
@@ -21,8 +22,14 @@ class DetectionResult:
 
 
 class FaceEngine:
-    def __init__(self, cfg: dict):
+    def __init__(
+        self,
+        cfg: dict,
+        enable_recognition: bool | None = None,
+        enable_gender_age: bool | None = None,
+    ):
         self.cfg = cfg
+        self.features_cfg = cfg.get("features", {})
         self.model_cfg = cfg["models"]
         self.runtime_cfg = cfg["runtime"]
         self.sahi_cfg = cfg["sahi"]
@@ -30,8 +37,20 @@ class FaceEngine:
         self.det_size = tuple2(self.model_cfg["detection_size"], "models.detection_size")
         self.embedding_batch_size = int(cfg["recognition"].get("embedding_batch_size", 32))
         self.model_root = model_store_root(cfg)
+        self.enable_recognition = (
+            bool(self.features_cfg.get("recognition", True)) if enable_recognition is None else enable_recognition
+        )
+        self.enable_gender_age = (
+            bool(self.features_cfg.get("gender_age", False)) if enable_gender_age is None else enable_gender_age
+        )
+        self.rec_model = None
+        self.gender_age_model = None
 
-        ensure_model_pack_downloaded(cfg)
+        ensure_model_pack_downloaded(
+            cfg,
+            require_recognition=self.enable_recognition,
+            require_gender_age=self.enable_gender_age,
+        )
         ctx_id = int(self.runtime_cfg.get("gpu_id", 0))
         det_use_trt = bool(self.runtime_cfg.get("use_tensorrt", False)) and bool(
             self.runtime_cfg.get("use_tensorrt_detection", True)
@@ -50,9 +69,13 @@ class FaceEngine:
             use_tensorrt=rec_use_trt,
             model_role="recognition",
         )
+        attr_providers, attr_provider_options = build_ort_provider_config(
+            cfg,
+            use_tensorrt=False,
+            model_role="gender_age",
+        )
 
         det_path = detection_onnx_path(cfg)
-        rec_path = recognition_onnx_path(cfg)
         try:
             self.det_model = self._load_model(det_path, det_providers, det_provider_options, "detection")
         except Exception as exc:
@@ -64,15 +87,27 @@ class FaceEngine:
             )
             self.det_model = self._load_model(det_path, det_providers, det_provider_options, "detection")
 
-        self.rec_model = self._load_model(rec_path, rec_providers, rec_provider_options, "recognition")
         self.det_model.prepare(
             ctx_id=ctx_id,
             det_thresh=float(self.model_cfg.get("detection_threshold", 0.5)),
             input_size=self.det_size,
         )
         self.det_model.nms_thresh = float(self.model_cfg.get("detection_nms_threshold", 0.4))
-        self.rec_model.prepare(ctx_id=ctx_id)
-        self.app = SimpleNamespace(models={"detection": self.det_model, "recognition": self.rec_model})
+
+        models = {"detection": self.det_model}
+        if self.enable_recognition:
+            rec_path = recognition_onnx_path(cfg)
+            self.rec_model = self._load_model(rec_path, rec_providers, rec_provider_options, "recognition")
+            self.rec_model.prepare(ctx_id=ctx_id)
+            models["recognition"] = self.rec_model
+
+        if self.enable_gender_age:
+            attr_path = gender_age_onnx_path(cfg)
+            self.gender_age_model = self._load_model(attr_path, attr_providers, attr_provider_options, "genderage")
+            self.gender_age_model.prepare(ctx_id=ctx_id)
+            models["genderage"] = self.gender_age_model
+
+        self.app = SimpleNamespace(models=models)
 
     def _load_model(self, path: Path, providers: list[str], provider_options: list[dict[str, str]], taskname: str):
         model = model_zoo.get_model(str(path), providers=providers, provider_options=provider_options)
@@ -127,6 +162,8 @@ class FaceEngine:
         return DetectionResult(bboxes, kpss)
 
     def embed_faces(self, frame: np.ndarray, kpss: np.ndarray | None) -> np.ndarray:
+        if self.rec_model is None:
+            raise RuntimeError("Recognition model is not loaded. Set features.recognition: true.")
         if kpss is None or len(kpss) == 0:
             return np.empty((0, 512), dtype=np.float32)
 
@@ -147,6 +184,17 @@ class FaceEngine:
         embeddings = np.vstack(outputs)
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True)
         return embeddings / (norms + 1e-9)
+
+    def gender_age_faces(self, frame: np.ndarray, bboxes: np.ndarray) -> list[tuple[int, int]]:
+        if self.gender_age_model is None:
+            return []
+
+        results: list[tuple[int, int]] = []
+        for bbox in bboxes:
+            face = Face(bbox=bbox[:4].astype(np.float32))
+            gender, age = self.gender_age_model.get(frame, face)
+            results.append((int(gender), int(age)))
+        return results
 
     def extract_image_embedding(self, image_path: str | Path) -> tuple[np.ndarray | None, dict]:
         image_path = Path(image_path)

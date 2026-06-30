@@ -7,6 +7,11 @@ paths:
   face_data_dir: data/default/face_data
   database_path: data/default/embeddings/buffalo_l/face_db.npz
 
+features:
+  detection: true
+  recognition: true
+  gender_age: false
+
 models:
   insightface_name: buffalo_l
   root: models/arcface

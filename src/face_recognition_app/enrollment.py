@@ -50,7 +50,7 @@ def run_enrollment(
     print(f"[INFO] Model: {cfg['models']['insightface_name']}")
     print(f"[INFO] Images: {len(image_paths)}")
 
-    engine = FaceEngine(cfg)
+    engine = FaceEngine(cfg, enable_recognition=True, enable_gender_age=False)
     samples: list[tuple[str, np.ndarray, str]] = []
     failures: list[tuple[str, Path, dict[str, Any]]] = []
     stats: defaultdict[str, PersonEnrollStats] = defaultdict(PersonEnrollStats)
